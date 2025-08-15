@@ -1,0 +1,173 @@
+name: Deploy ShopEase
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: mbstring, xml, ctype, iconv, intl, pdo_sqlite, sqlite3, fileinfo, openssl, tokenizer, json
+        coverage: none
+    
+    - name: Install Composer
+      uses: ramsey/composer-install@v2
+      with:
+        composer-options: --no-dev --optimize-autoloader
+    
+    - name: Copy .env
+      run: cp .env.example .env
+    
+    - name: Generate Application Key
+      run: php artisan key:generate
+    
+    - name: Setup Database
+      run: |
+        php artisan migrate --force
+        php artisan db:seed --force
+    
+    - name: Run Tests
+      run: php artisan test
+    
+    - name: Check Application
+      run: php artisan route:list
+
+  deploy-heroku:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: mbstring, xml, ctype, iconv, intl, pdo_sqlite, sqlite3, fileinfo, openssl, tokenizer, json
+    
+    - name: Install Composer
+      uses: ramsey/composer-install@v2
+      with:
+        composer-options: --no-dev --optimize-autoloader
+    
+    - name: Copy .env
+      run: cp .env.example .env
+    
+    - name: Generate Application Key
+      run: php artisan key:generate
+    
+    - name: Setup Database
+      run: |
+        php artisan migrate --force
+        php artisan db:seed --force
+    
+    - name: Build Application
+      run: |
+        php artisan config:cache
+        php artisan route:cache
+        php artisan view:cache
+    
+    - name: Deploy to Heroku
+      uses: akhileshns/heroku-deploy@v3.12.14
+      with:
+        heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+        heroku_app_name: ${{ secrets.HEROKU_APP_NAME }}
+        heroku_email: ${{ secrets.HEROKU_EMAIL }}
+        appdir: "."
+
+  deploy-railway:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: mbstring, xml, ctype, iconv, intl, pdo_sqlite, sqlite3, fileinfo, openssl, tokenizer, json
+    
+    - name: Install Composer
+      uses: ramsey/composer-install@v2
+      with:
+        composer-options: --no-dev --optimize-autoloader
+    
+    - name: Copy .env
+      run: cp .env.example .env
+    
+    - name: Generate Application Key
+      run: php artisan key:generate
+    
+    - name: Setup Database
+      run: |
+        php artisan migrate --force
+        php artisan db:seed --force
+    
+    - name: Build Application
+      run: |
+        php artisan config:cache
+        php artisan route:cache
+        php artisan view:cache
+    
+    - name: Deploy to Railway
+      uses: bervProject/railway-deploy@v1.0.0
+      with:
+        railway_token: ${{ secrets.RAILWAY_TOKEN }}
+        service: ${{ secrets.RAILWAY_SERVICE }}
+
+  deploy-vercel:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: mbstring, xml, ctype, iconv, intl, pdo_sqlite, sqlite3, fileinfo, openssl, tokenizer, json
+    
+    - name: Install Composer
+      uses: ramsey/composer-install@v2
+      with:
+        composer-options: --no-dev --optimize-autoloader
+    
+    - name: Copy .env
+      run: cp .env.example .env
+    
+    - name: Generate Application Key
+      run: php artisan key:generate
+    
+    - name: Setup Database
+      run: |
+        php artisan migrate --force
+        php artisan db:seed --force
+    
+    - name: Build Application
+      run: |
+        php artisan config:cache
+        php artisan route:cache
+        php artisan view:cache
+    
+    - name: Deploy to Vercel
+      uses: amondnet/vercel-action@v25
+      with:
+        vercel-token: ${{ secrets.VERCEL_TOKEN }}
+        vercel-org-id: ${{ secrets.ORG_ID }}
+        vercel-project-id: ${{ secrets.PROJECT_ID }}
+        vercel-args: '--prod'
